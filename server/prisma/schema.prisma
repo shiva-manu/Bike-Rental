@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // The connection URL has been moved to prisma.config.ts
+}
+
+// ENUMS
+enum Role{
+  STUDENT
+  ADMIN
+}
+enum BikeStatus{
+  AVAILABLE
+  BOOKED
+  MAINTENANCE
+}
+
+enum BookingStatus{
+  BOOKED
+  CANCELLED
+  COMPLETED
+}
+
+// USER (STUDENT)
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  phone String?
+  role Role @default(STUDENT)
+  bookings Booking[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ADMINISTRATOR
+
+model Administrator{
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  createdAt DateTime @default(now())
+}
+
+//Bike
+model Bike{
+  id String @id  @default(uuid())
+  bikeNo  String @unique
+  name String
+  imageUrl String // supabase storage / CDN Url
+  status BikeStatus @default(AVAILABLE)
+  price BikePrice[]
+  bookings Booking[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Booking {
+  id String @id @default(uuid())
+  user User @relation(fields: [userId],references: [id])
+  userId String
+  bike Bike @relation(fields: [bikeId],references: [id])
+  bikeId String
+  startDate DateTime @db.Date
+  endDate DateTime @db.Date
+  startTime String
+  endTime String
+  priceType PriceType
+  totalPrice Int
+  status BookingStatus @default(BOOKED)
+  createdAt DateTime @default(now())
+  @@index([bikeId, startDate, endDate])
+}
+
+model BikePrice{
+  id String @id @default(uuid())
+  bike Bike @relation(fields: [bikeId],references:[id])
+  bikeId String
+  type PriceType   //Hour | Day | Week | Month
+  price Int        // Price in INR (store smallest unit)
+  validFrom DateTime  // when prices starts
+  validTo DateTime?  // null =current time
+  createdAt DateTime @default(now())
+}
+
+enum PriceType{
+  HOUR 
+  DAY 
+  WEEK 
+  MONTH
+}

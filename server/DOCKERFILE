@@ -1,0 +1,45 @@
+# -----------------------------
+# Base image (Node LTS)
+# -----------------------------
+FROM node:20-alpine
+
+# -----------------------------
+# Set working directory
+# -----------------------------
+WORKDIR /app
+
+# -----------------------------
+# Install system dependencies
+# (needed for Prisma + pg)
+# -----------------------------
+RUN apk add --no-cache openssl libc6-compat
+
+# -----------------------------
+# Copy package files
+# -----------------------------
+COPY package.json package-lock.json ./
+
+# -----------------------------
+# Install dependencies
+# -----------------------------
+RUN npm ci
+
+# -----------------------------
+# Copy the rest of the app
+# -----------------------------
+COPY . .
+
+# -----------------------------
+# Generate Prisma Client
+# -----------------------------
+RUN npx prisma generate
+
+# -----------------------------
+# Expose port (Fly.io uses this)
+# -----------------------------
+EXPOSE 3000
+
+# -----------------------------
+# Start the server
+# -----------------------------
+CMD ["node", "server.js"]
