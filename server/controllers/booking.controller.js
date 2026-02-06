@@ -1,6 +1,8 @@
 import prisma from "../config/prisma.js";
+import { sendBookingNotification } from "../services/whatsapp.service.js";
 
 const toDateTime = (date, time12h) => {
+    // ... existing helper logic ...
     const [time, modifier] = time12h.split(' ');
     let [hours, minutes] = time.split(':');
     const mod = modifier ? modifier.toUpperCase() : 'AM';
@@ -15,68 +17,77 @@ const toDateTime = (date, time12h) => {
 
 const bookBike = async (req, res) => {
     const { bikeId, startDate, endDate, startTime, endTime, priceType, totalPrice } = req.body;
-
     const userId = req.user.id;
 
-    // Check bike exists
-    const bike = await prisma.bike.findUnique({
-        where: { id: bikeId },
-    });
+    try {
+        // Check bike and user exist
+        const [bike, user] = await Promise.all([
+            prisma.bike.findUnique({ where: { id: bikeId } }),
+            prisma.user.findUnique({ where: { id: userId } })
+        ]);
 
-    if (!bike) {
-        return res.status(404).json({ message: "Bike not found" });
-    }
+        if (!bike) return res.status(404).json({ message: "Bike not found" });
+        if (!user) return res.status(404).json({ message: "User not found" });
 
-    const inputStartTimestamp = toDateTime(startDate, startTime);
-    const inputEndTimestamp = toDateTime(endDate, endTime);
+        const inputStartTimestamp = toDateTime(startDate, startTime);
+        const inputEndTimestamp = toDateTime(endDate, endTime);
 
-    if (inputStartTimestamp >= inputEndTimestamp) {
-        return res.status(400).json({ message: "Invalid time range: Start must be before end" });
-    }
-
-    // Check for overlapping booking
-    const potentialConflicts = await prisma.booking.findMany({
-        where: {
-            bikeId,
-            status: "BOOKED",
-            AND: [
-                { startDate: { lte: new Date(endDate) } },
-                { endDate: { gte: new Date(startDate) } }
-            ]
+        if (inputStartTimestamp >= inputEndTimestamp) {
+            return res.status(400).json({ message: "Invalid time range" });
         }
-    });
 
-    const hasConflict = potentialConflicts.some(b => {
-        const bStart = toDateTime(b.startDate, b.startTime);
-        const bEnd = toDateTime(b.endDate, b.endTime);
-
-        // Standard overlap: S1 < E2 AND E1 > S2
-        return (inputStartTimestamp < bEnd && inputEndTimestamp > bStart);
-    });
-
-    if (hasConflict) {
-        return res.status(409).json({
-            message: "Bike not available for this period (Overlaps with existing booking)",
+        // Check for overlapping booking
+        const potentialConflicts = await prisma.booking.findMany({
+            where: {
+                bikeId,
+                status: "BOOKED",
+                AND: [
+                    { startDate: { lte: new Date(endDate) } },
+                    { endDate: { gte: new Date(startDate) } }
+                ]
+            }
         });
-    }
 
-    // Create booking
-    const booking = await prisma.booking.create({
-        data: {
-            userId,
-            bikeId,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
-            startTime, // Store 12h string
-            endTime,   // Store 12h string
-            priceType,
-            totalPrice,
+        const hasConflict = potentialConflicts.some(b => {
+            const bStart = toDateTime(b.startDate, b.startTime);
+            const bEnd = toDateTime(b.endDate, b.endTime);
+            return (inputStartTimestamp < bEnd && inputEndTimestamp > bStart);
+        });
+
+        if (hasConflict) {
+            return res.status(409).json({ message: "Bike not available for this period" });
         }
-    });
-    res.status(201).json({
-        message: "Bike booked successfully",
-        booking,
-    });
+
+        // Create booking
+        const booking = await prisma.booking.create({
+            data: {
+                userId, bikeId,
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                startTime, endTime, priceType, totalPrice,
+            }
+        });
+
+        // Trigger WhatsApp Notification (Async - don't block response)
+        sendBookingNotification({
+            userName: user.name,
+            bikeName: bike.name,
+            startDate,
+            endDate,
+            startTime,
+            endTime,
+            priceType,
+            totalPrice
+        });
+
+        res.status(201).json({
+            message: "Bike booked successfully",
+            booking,
+        });
+    } catch (error) {
+        console.error("Booking error:", error);
+        res.status(500).json({ message: "Failed to create booking" });
+    }
 }
 
-export default bookBike
+export default bookBike;

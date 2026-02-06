@@ -15,7 +15,7 @@ import {
 import { toast } from 'sonner';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, differenceInDays, addWeeks, addMonths } from "date-fns";
+import { format, differenceInDays, addWeeks, addMonths, addDays } from "date-fns";
 import { CalendarIcon, ClockIcon, InfoIcon } from "lucide-react";
 import Timekeeper from 'react-timekeeper';
 
@@ -44,8 +44,8 @@ export function BookingPage() {
     const [startDate, setStartDate] = useState<Date | undefined>(new Date());
 
     // Hour specific
-    const [startTime, setStartTime] = useState('09:00 AM');
-    const [endTime, setEndTime] = useState('06:00 PM');
+    const [startTime, setStartTime] = useState(() => format(new Date(), "hh:mm a"));
+    const [endTime, setEndTime] = useState(() => format(new Date(), "hh:mm a"));
 
     // Day specific
     const [endDate, setEndDate] = useState<Date | undefined>(() => {
@@ -59,19 +59,18 @@ export function BookingPage() {
 
     const [submitting, setSubmitting] = useState(false);
 
-    const calculateReciprocalTime = (time12h: string) => {
-        const parts = time12h.split(' ');
-        if (parts.length !== 2) return time12h;
-        const [time, modifier] = parts;
-        const newModifier = modifier.toUpperCase() === 'AM' ? 'PM' : 'AM';
-        return `${time} ${newModifier}`;
-    };
+
 
     useEffect(() => {
         if (selectedPriceType !== 'HOUR') {
-            setEndTime(calculateReciprocalTime(startTime));
+            setEndTime(startTime);
         }
-    }, [startTime, selectedPriceType]);
+
+        // If DAY is selected, force endDate to be startDate + 1
+        if (selectedPriceType === 'DAY' && startDate) {
+            setEndDate(addDays(startDate, 1));
+        }
+    }, [startTime, selectedPriceType, startDate]);
 
     useEffect(() => {
         fetch(`${API_BASE_URL}/bikes/${id}`)
@@ -161,14 +160,11 @@ export function BookingPage() {
             e = addMonths(startDate, parseInt(duration));
         }
 
-        // Handle reciprocal/midnight crossing for 12h-style rentals (Day, Week, Month + Hour if cross)
-        // Check if startTime PM and endTime AM
+        // Handle midnight crossing ONLY for hourly rentals (e.g., 11 PM to 2 AM)
         const startPM = startTime.toUpperCase().includes('PM');
         const endAM = endTime.toUpperCase().includes('AM');
 
-        // If it's a 12h reciprocal or hour crossing midnight
-        if ((selectedPriceType !== 'HOUR' || (startPM && endAM)) && (startPM && endAM)) {
-            // It ends one day later than the "day-based" end date
+        if (selectedPriceType === 'HOUR' && startPM && endAM) {
             const adjustedEnd = new Date(e);
             adjustedEnd.setDate(adjustedEnd.getDate() + 1);
             e = adjustedEnd;
@@ -409,7 +405,7 @@ export function BookingPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-sm font-bold text-muted-foreground">
-                                        Until {selectedPriceType !== 'HOUR' && '(Auto 12h)'}
+                                        Until {selectedPriceType !== 'HOUR' && '(Auto 24h)'}
                                     </Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -434,18 +430,16 @@ export function BookingPage() {
                             {/* Conditional Inputs */}
                             {selectedPriceType === 'DAY' && (
                                 <div className="space-y-2">
-                                    <Label className="text-sm font-bold text-muted-foreground">End Date</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full h-12 justify-start text-left font-medium text-lg">
-                                                <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
-                                                {endDate ? format(endDate, "PPP") : "Select end date"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                        </PopoverContent>
-                                    </Popover>
+                                    <Label className="text-sm font-bold text-muted-foreground text-primary">End Date (Fixed 24h)</Label>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full h-12 justify-start text-left font-medium text-lg bg-muted cursor-not-allowed opacity-80"
+                                        disabled
+                                    >
+                                        <CalendarIcon className="mr-3 h-5 w-5 text-primary opacity-70" />
+                                        {endDate ? format(endDate, "PPP") : "Calculated end date"}
+                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground italic">Day plan is locked to exactly 24 hours.</p>
                                 </div>
                             )}
 
@@ -481,7 +475,7 @@ export function BookingPage() {
                             {isConflict && (
                                 <div className="p-4 bg-destructive/15 text-destructive text-sm rounded-xl border border-destructive/20 font-bold flex items-center gap-3">
                                     <InfoIcon className="w-5 h-5 flex-shrink-0" />
-                                    <span>Time slot conflict or invalid range detected.</span>
+                                    <span>Bike already booked for this time range.</span>
                                 </div>
                             )}
 
