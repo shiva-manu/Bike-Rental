@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { sendBookingNotification } from "../services/whatsapp.service.js";
+import redisClient from "../config/redis.js";
 
 const toDateTime = (date, time12h) => {
     // ... existing helper logic ...
@@ -36,17 +37,23 @@ const bookBike = async (req, res) => {
             return res.status(400).json({ message: "Invalid time range" });
         }
 
-        // Check for overlapping booking
-        const potentialConflicts = await prisma.booking.findMany({
-            where: {
-                bikeId,
-                status: "BOOKED",
-                AND: [
-                    { startDate: { lte: new Date(endDate) } },
-                    { endDate: { gte: new Date(startDate) } }
-                ]
-            }
-        });
+        // Check for overlapping booking using Redis Cache
+        const cacheKey = `bookings:${bikeId}`;
+        let potentialConflicts;
+        const cached = await redisClient.get(cacheKey);
+
+        if (cached) {
+            potentialConflicts = JSON.parse(cached);
+        } else {
+            potentialConflicts = await prisma.booking.findMany({
+                where: {
+                    bikeId,
+                    status: "BOOKED",
+                    endDate: { gte: new Date() } // Only future or current bookings
+                }
+            });
+            await redisClient.set(cacheKey, JSON.stringify(potentialConflicts), { EX: 300 }); // Cache for 5 min
+        }
 
         const hasConflict = potentialConflicts.some(b => {
             const bStart = toDateTime(b.startDate, b.startTime);
@@ -67,6 +74,11 @@ const bookBike = async (req, res) => {
                 startTime, endTime, priceType, totalPrice,
             }
         });
+
+        // Invalidate caches
+        await redisClient.del(cacheKey);
+        await redisClient.del(`bike:${bikeId}`);
+        await redisClient.del('all_bikes');
 
         // Trigger WhatsApp Notification (Async - don't block response)
         sendBookingNotification({

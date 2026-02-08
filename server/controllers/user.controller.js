@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import redisClient from "../config/redis.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -58,4 +59,19 @@ export const userLogin = async (req, res) => {
         }
     });
 
+};
+
+export const userLogout = async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(400).json({ message: "No token provided" });
+
+        const token = authHeader.split(" ")[1];
+        // Expire in 7 days (matching our JWT expiry)
+        await redisClient.set(`blacklist:${token}`, 'true', { EX: 7 * 24 * 60 * 60 });
+
+        res.json({ message: "Logged out successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Logout failed" });
+    }
 };

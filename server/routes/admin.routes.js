@@ -1,5 +1,5 @@
 import express from "express";
-import { adminLogin, adminSignUp, getBookings, deleteBooking, updateBookingStatus } from "../controllers/admin.controller.js";
+import { adminLogin, adminSignUp, adminLogout, getBookings, deleteBooking, updateBookingStatus } from "../controllers/admin.controller.js";
 import { createBike, getAllBikes, createBikePrice, deleteBike } from "../controllers/bike.controller.js";
 import adminAuth from "../middlewares/adminAuth.middleware.js";
 
@@ -8,6 +8,7 @@ const router = express.Router();
 // Auth
 router.post("/signup", adminSignUp);
 router.post("/login", adminLogin);
+router.post("/logout", adminAuth, adminLogout);
 
 // Admin panel actions
 router.get("/get-all-bikes", getAllBikes);

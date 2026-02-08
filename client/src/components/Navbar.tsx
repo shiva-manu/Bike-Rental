@@ -15,16 +15,16 @@ export function Navbar() {
 
     return (
         <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-            <div className="container flex h-14 items-center max-w-screen-2xl mx-auto px-4">
-                <Link to="/" className="mr-4 flex items-center space-x-2 shrink-0">
-                    <span className="font-bold text-base sm:text-lg tracking-tight">RollingWheels</span>
+            <div className="flex h-16 items-center w-full px-6 overflow-visible">
+                <Link to="/" className="mr-6 flex items-center shrink-0">
+                    <img src="/logo.png" alt="Rollin'Wheels Logo" className="h-20 w-auto object-contain" />
                 </Link>
                 <div className="mr-4 flex">
                     <Link
                         to="/"
-                        className="text-xs sm:text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60"
+                        className="text-xs sm:text-sm font-black transition-colors hover:text-primary text-foreground/80 uppercase tracking-tighter"
                     >
-                        Bikes
+                        Explore Bikes
                     </Link>
                 </div>
                 <div className="flex flex-1 items-center justify-end space-x-1 sm:space-x-2">
@@ -41,10 +41,10 @@ export function Navbar() {
                                     size="sm"
                                     asChild
                                     className={cn(
-                                        "h-8 sm:h-9 px-2 sm:px-4 text-[10px] sm:text-sm rounded-md transition-colors",
+                                        "h-8 sm:h-9 px-2 sm:px-4 text-[10px] sm:text-sm rounded-md transition-colors font-bold",
                                         location.pathname === '/login'
-                                            ? "bg-white text-black border shadow-sm"
-                                            : "bg-black text-white border-transparent"
+                                            ? "bg-primary text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+                                            : "bg-black text-white border border-primary/30 hover:border-primary/60"
                                     )}
                                 >
                                     <Link to="/login">Login</Link>
@@ -53,25 +53,13 @@ export function Navbar() {
                                     size="sm"
                                     asChild
                                     className={cn(
-                                        "h-8 sm:h-9 px-2 sm:px-4 text-[10px] sm:text-sm rounded-md transition-colors",
+                                        "h-8 sm:h-9 px-2 sm:px-4 text-[10px] sm:text-sm rounded-md transition-colors font-bold",
                                         location.pathname === '/signup'
-                                            ? "bg-white text-black border shadow-sm"
-                                            : "bg-black text-white border-transparent"
+                                            ? "bg-primary text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+                                            : "bg-black text-white border border-primary/30 hover:border-primary/60"
                                     )}
                                 >
                                     <Link to="/signup">Sign Up</Link>
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    asChild
-                                    className={cn(
-                                        "h-8 sm:h-9 px-2 sm:px-4 text-[10px] sm:text-sm rounded-md transition-colors",
-                                        location.pathname === '/admin/login'
-                                            ? "bg-white text-black border shadow-sm"
-                                            : "bg-black text-white border-transparent"
-                                    )}
-                                >
-                                    <Link to="/admin/login">Admin</Link>
                                 </Button>
                             </>
                         )}

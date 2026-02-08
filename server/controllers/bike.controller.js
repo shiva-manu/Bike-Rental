@@ -1,47 +1,41 @@
 import prisma from "../config/prisma.js";
+import redisClient from "../config/redis.js";
 
 export const getAllBikes = async (req, res) => {
-  const bikes = await prisma.bike.findMany({
-    include: {
-      price: {
-        where: {
-          validFrom: {
-            lte: new Date()
+  try {
+    const cachedBikes = await redisClient.get('all_bikes');
+    if (cachedBikes) {
+      return res.json(JSON.parse(cachedBikes));
+    }
+
+    const bikes = await prisma.bike.findMany({
+      include: {
+        price: {
+          where: {
+            validFrom: { lte: new Date() },
+            OR: [{ validTo: null }, { validTo: { gte: new Date() } }],
           },
-          OR: [
-            {
-              validTo: null,
-            },
-            {
-              validTo: {
-                gte: new Date(),
-              }
-            }
-          ],
-        },
-        select: {
-          type: true,
-          price: true,
+          select: { type: true, price: true }
         }
-      }
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-  res.json(bikes);
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    await redisClient.set('all_bikes', JSON.stringify(bikes), { EX: 3600 }); // Cache for 1 hour
+    res.json(bikes);
+  } catch (error) {
+    console.error("Get all bikes error:", error);
+    res.status(500).json({ message: "Failed to fetch bikes" });
+  }
 }
 
 export const createBike = async (req, res) => {
   const { bikeNo, name, imageUrl, status } = req.body;
   const bike = await prisma.bike.create({
-    data: {
-      bikeNo,
-      name,
-      imageUrl,
-      status: status || "AVAILABLE",
-    }
+    data: { bikeNo, name, imageUrl, status: status || "AVAILABLE" }
   });
+
+  await redisClient.del('all_bikes');
   res.status(201).json(bike);
 }
 
@@ -88,6 +82,9 @@ export const createBikePrice = async (req, res) => {
     },
   });
 
+  await redisClient.del('all_bikes');
+  await redisClient.del(`bike:${bikeId}`);
+
   res.status(201).json({
     message: "Bike price created successfully",
     bikePrice,
@@ -96,34 +93,36 @@ export const createBikePrice = async (req, res) => {
 
 export const getBikeById = async (req, res) => {
   const { id } = req.params;
-  const bike = await prisma.bike.findUnique({
-    where: { id },
-    include: {
-      bookings: {
-        select: {
-          startDate: true,
-          endDate: true,
-          startTime: true,
-          endTime: true,
-        },
-        where: {
-          // Fetch bookings that are active today or in the future
-          endDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      },
-      price: {
-        where: {
-          validFrom: { lte: new Date() },
-          OR: [{ validTo: null }, { validTo: { gte: new Date() } }],
-        },
-      },
-    },
-  });
+  try {
+    const cachedBike = await redisClient.get(`bike:${id}`);
+    if (cachedBike) {
+      return res.json(JSON.parse(cachedBike));
+    }
 
-  if (!bike) {
-    return res.status(404).json({ message: "Bike not found" });
+    const bike = await prisma.bike.findUnique({
+      where: { id },
+      include: {
+        bookings: {
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          where: { endDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
+        },
+        price: {
+          where: {
+            validFrom: { lte: new Date() },
+            OR: [{ validTo: null }, { validTo: { gte: new Date() } }],
+          },
+        },
+      },
+    });
+
+    if (!bike) return res.status(404).json({ message: "Bike not found" });
+
+    await redisClient.set(`bike:${id}`, JSON.stringify(bike), { EX: 600 }); // Cache for 10 min
+    res.json(bike);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch bike details" });
   }
-  res.json(bike);
 };
 
 export const deleteBike = async (req, res) => {
@@ -142,6 +141,9 @@ export const deleteBike = async (req, res) => {
     await prisma.bike.delete({
       where: { id }
     });
+
+    await redisClient.del('all_bikes');
+    await redisClient.del(`bike:${id}`);
     res.json({ message: "Bike deleted successfully" });
   } catch (error) {
     console.error("Delete bike error:", error);

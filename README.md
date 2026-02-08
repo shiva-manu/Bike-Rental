@@ -1,6 +1,6 @@
-# RollingWheels - Premium Bike Rental System
+# Rollin'Wheels - Premium Bike Rental System
 
-RollingWheels is a modern, full-stack bike rental application designed for a seamless booking experience. It features a robust admin dashboard for fleet management and a beautiful, responsive user interface for customers.
+Rollin'Wheels is a modern, full-stack bike rental application designed for a seamless booking experience. It features a robust admin dashboard for fleet management and a beautiful, responsive user interface for customers.
 
 ## 🚀 Features
 
@@ -28,7 +28,7 @@ RollingWheels is a modern, full-stack bike rental application designed for a sea
 ## 📦 Project Structure
 
 ```bash
-rollingwheels/
+rollinwheels/
 ├── client/          # Vite + React Frontend
 └── server/          # Node.js + Express Backend
 ```
@@ -82,4 +82,4 @@ The application is configured for deployment on **Vercel**.
 - The `client/.npmrc` includes `legacy-peer-deps=true` to resolve specific dependency conflicts during build.
 
 ---
-Built with ❤️ by the RollingWheels Team.
+Built with ❤️ by the Rollin'Wheels Team.

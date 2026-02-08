@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";
+import redisClient from "../config/redis.js";
 
 const UserAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -10,6 +11,12 @@ const UserAuth = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     try {
+        // Check if token is blacklisted
+        const isBlacklisted = await redisClient.get(`blacklist:${token}`);
+        if (isBlacklisted) {
+            return res.status(401).json({ message: "Session expired. Please login again." });
+        }
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         if (decoded.role !== "STUDENT") {

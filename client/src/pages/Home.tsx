@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { getDirectImageUrl } from '@/lib/image-utils';
 
 interface BikePrice {
     type: string;
@@ -86,11 +88,28 @@ export function Home() {
                         <Card key={bike.id} className="overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-muted-foreground/20 group">
                             <div className="aspect-video w-full relative bg-muted overflow-hidden">
                                 <img
-                                    src={bike.imageUrl || "https://placehold.co/600x400?text=Bike"}
+                                    src={getDirectImageUrl(bike.imageUrl) || "https://placehold.co/600x400?text=Bike"}
                                     alt={bike.name}
                                     className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                                    onError={(e) => {
+                                        const img = e.currentTarget;
+                                        if (bike.imageUrl && bike.imageUrl.includes('drive.google.com') && !img.src.includes('thumbnail')) {
+                                            // Fallback to thumbnail service if direct view fails
+                                            const match = bike.imageUrl.match(/(?:d\/|id=|open\?id=|file\/d\/)([a-zA-Z0-9_-]{25,})/);
+                                            if (match) {
+                                                img.src = `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+                                                return;
+                                            }
+                                        }
+                                        img.src = "https://placehold.co/600x400?text=Image+Unavailable";
+                                    }}
                                 />
-                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-background/90 text-xs font-bold shadow-sm uppercase tracking-wide border border-border">
+                                <div className={cn(
+                                    "absolute top-2 right-2 px-3 py-1 rounded-full text-[10px] font-black shadow-lg uppercase tracking-widest border backdrop-blur-md",
+                                    bike.status === 'AVAILABLE'
+                                        ? "bg-primary/90 text-black border-primary/50"
+                                        : "bg-background/90 text-muted-foreground border-border"
+                                )}>
                                     {bike.status}
                                 </div>
                             </div>

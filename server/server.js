@@ -2,6 +2,7 @@ import express from "express";
 import bikeRoutes from "./routes/bike.routes.js"
 import adminRoutes from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import redisClient from "./config/redis.js";
 import cors from "cors";
 const app = express();
 const PORT = process.env.PORT || 3000;

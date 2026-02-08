@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
+import { getDirectImageUrl } from '@/lib/image-utils';
 
 interface Bike {
     id: string;
@@ -114,8 +115,28 @@ export function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Image URL (CDN / Supabase)</Label>
-                                    <Input required placeholder="https://..." value={imageUrl} onChange={e => setImageUrl(e.target.value)} />
+                                    <div className="flex justify-between items-end">
+                                        <Label>Image URL (Google Drive / CDN)</Label>
+                                        <span className="text-[10px] text-primary font-bold animate-pulse">💡 Set Drive file to 'Anyone with link'</span>
+                                    </div>
+                                    <Input required placeholder="Paste Google Drive share link here..." value={imageUrl} onChange={e => setImageUrl(e.target.value)} />
+                                    {imageUrl && (
+                                        <div className="mt-2 rounded-lg border overflow-hidden aspect-video bg-muted relative border-primary/20 shadow-inner">
+                                            <img
+                                                src={getDirectImageUrl(imageUrl)}
+                                                alt="Preview"
+                                                className="object-cover w-full h-full"
+                                                onError={(e) => {
+                                                    console.log("Image load error for:", imageUrl);
+                                                    (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=Please+check+Drive+Permissions";
+                                                }}
+                                            />
+                                            <div className="absolute top-2 right-2 px-2 py-1 bg-primary/80 text-[10px] text-black font-black rounded backdrop-blur-sm uppercase">
+                                                Live Preview
+                                            </div>
+                                        </div>
+                                    )}
+                                    <p className="text-[10px] text-muted-foreground italic">Paste the link from 'Share' &rarr; 'Copy Link'. Ensure access is set to 'Anyone with the link'.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Initial Status</Label>
